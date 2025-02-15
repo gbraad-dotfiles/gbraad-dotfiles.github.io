@@ -12,7 +12,7 @@ clone_repository() {
 }
 
 install_dotfiles() {
-  ~/.dotfiles/install.sh
+  sh ~/.dotfiles/install.sh
 }
 
 check_git_installed
