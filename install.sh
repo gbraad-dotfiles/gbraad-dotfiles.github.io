@@ -26,7 +26,8 @@ clone_repository() {
 }
 
 install_dotfiles() {
-  sh ~/.dotfiles/install.sh
+  # bash is required to bootstrap
+  bash ~/.dotfiles/install.sh
 }
 
 check_sudo_permissions() {
