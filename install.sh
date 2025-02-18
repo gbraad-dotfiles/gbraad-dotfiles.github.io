@@ -22,7 +22,7 @@ check_git_installed() {
 }
 
 clone_repository() {
-  git clone https://github.com/gbraad-dotfiles/upstream ~/.dotfiles --recursive
+  git clone https://github.com/gbraad-dotfiles/upstream ~/.dotfiles --depth 2
 }
 
 install_dotfiles() {
