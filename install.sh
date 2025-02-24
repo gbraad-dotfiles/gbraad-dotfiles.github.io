@@ -42,7 +42,7 @@ if ! check_git_installed; then
   if check_sudo_permissions; then
     install_requirements
   else
-    "Git is not installed and you do not have the permissions to install"
+    echo "Git is not installed and you do not have the permissions to install"
     exit 1
   fi
 fi
