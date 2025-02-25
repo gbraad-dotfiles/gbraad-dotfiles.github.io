@@ -1,16 +1,41 @@
 #!/bin/sh
 
+check_permissions() {
+  # First check if user is root
+  if [ "$(id -u)" = "0" ]; then
+    return 0  # Root user always has full permissions
+  fi
+  
+  # For non-root users, check sudo capabilities
+  if ! sudo -n true 2>/dev/null; then
+    return 1
+  fi
+  return 0
+}
+
+# Get command prefix (empty for root, sudo for others with sudo rights)
+get_cmd_prefix() {
+  if [ "$(id -u)" = "0" ]; then
+    echo ""
+  else
+    echo "sudo "
+  fi
+}
+
 install_requirements() {
   APTPKGS="git"
   RPMPKGS="git-core"
 
+  # Get the appropriate command prefix
+  CMD_PREFIX=$(get_cmd_prefix)
+
   # Crude multi-os installation option
   if [ -x "/usr/bin/apt-get" ]
   then
-    sudo apt-get install -y $APTPKGS
+    ${CMD_PREFIX}apt-get install -y $APTPKGS
   elif [ -x "/usr/bin/dnf" ]
   then
-    sudo dnf install -y $RPMPKGS
+    ${CMD_PREFIX}dnf install -y $RPMPKGS
   fi
 }
 
@@ -28,19 +53,6 @@ clone_repository() {
 install_dotfiles() {
   # bash is required to bootstrap
   bash ~/.dotfiles/install.sh
-}
-
-check_permissions() {
-  # First check if user is root
-  if [ "$(id -u)" = "0" ]; then
-    return 0  # Root user always has full permissions
-  fi
-  
-  echo "Checking if the current user has sudo permissions..."
-  if ! sudo -n true 2>/dev/null; then
-    return 1
-  fi
-  return 0
 }
 
 if ! check_git_installed; then
