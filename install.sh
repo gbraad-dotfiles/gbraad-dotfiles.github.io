@@ -1,8 +1,12 @@
 #!/bin/sh
 
+is_root() {
+  [ "$(id -u)" = "0" ]
+}
+
 check_permissions() {
   # First check if user is root
-  if [ "$(id -u)" = "0" ]; then
+  if is_root; then
     return 0  # Root user always has full permissions
   fi
   
@@ -15,7 +19,7 @@ check_permissions() {
 
 # Get command prefix (empty for root, sudo for others with sudo rights)
 get_cmd_prefix() {
-  if [ "$(id -u)" = "0" ]; then
+  if is_root; then
     echo ""
   else
     echo "sudo "
