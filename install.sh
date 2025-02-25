@@ -30,7 +30,12 @@ install_dotfiles() {
   bash ~/.dotfiles/install.sh
 }
 
-check_sudo_permissions() {
+check_permissions() {
+  # First check if user is root
+  if [ "$(id -u)" = "0" ]; then
+    return 0  # Root user always has full permissions
+  fi
+  
   echo "Checking if the current user has sudo permissions..."
   if ! sudo -n true 2>/dev/null; then
     return 1
@@ -39,7 +44,7 @@ check_sudo_permissions() {
 }
 
 if ! check_git_installed; then
-  if check_sudo_permissions; then
+  if check_permissions; then
     install_requirements
   else
     echo "Git is not installed and you do not have the permissions to install"
