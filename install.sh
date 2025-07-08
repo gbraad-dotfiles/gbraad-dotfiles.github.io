@@ -1,5 +1,10 @@
 #!/bin/sh
 
+UPSTREAM="https://github.com/gbraad-dotfiles/upstream"
+STABLE="https://github.com/gbraad/dotfiles-stable"
+TARGET="${HOME}/.dotfiles"
+
+
 is_root() {
   [ "$(id -u)" = "0" ]
 }
@@ -36,10 +41,10 @@ install_requirements() {
   # Crude multi-os installation option
   if [ -x "/usr/bin/apt-get" ]
   then
-    ${CMD_PREFIX}apt-get install -y $APTPKGS
+    ${CMD_PREFIX}apt-get install -y ${APTPKGS}
   elif [ -x "/usr/bin/dnf" ]
   then
-    ${CMD_PREFIX}dnf install -y $RPMPKGS
+    ${CMD_PREFIX}dnf install -y ${RPMPKGS}
   fi
 }
 
@@ -51,12 +56,12 @@ check_git_installed() {
 }
 
 clone_repository() {
-  git clone https://github.com/gbraad-dotfiles/upstream ~/.dotfiles --depth 2
+  git clone ${STABLE} ${TARGET} --depth 2
 }
 
 install_dotfiles() {
   # bash is required to bootstrap
-  bash ~/.dotfiles/install.sh
+  bash ${TARGET}/install.sh
 }
 
 if ! check_git_installed; then
