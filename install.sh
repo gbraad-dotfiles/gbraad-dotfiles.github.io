@@ -16,7 +16,7 @@ check_permissions() {
   fi
   
   # For non-root users, check sudo capabilities
-  if ! sudo -n true 2>/dev/null; then
+  if ! sudo -n true >/dev/null 2>&1; then
     return 1
   fi
   return 0
@@ -49,7 +49,7 @@ install_requirements() {
 }
 
 check_git_installed() {
-  if ! command -v git &> /dev/null; then
+  if ! command -v git >/dev/null 2>&1; then
     return 1
   fi
   return 0
