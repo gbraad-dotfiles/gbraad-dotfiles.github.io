@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>wmux - Web tmux Controller</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#CF1A37">
+    <link rel="stylesheet" href="vendor/xterm.css" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        /* SPA view styles - these containers replace body's role */
+        #view-terminal {
+            width: 100%;
+            flex: 1;
+            flex-direction: column;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Add host dialog and host item styles */
+        .host-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.2s;
+        }
+        .host-item:hover {
+            background: #2a2a2a;
+            border-color: var(--accent);
+        }
+        .host-info {
+            flex: 1;
+        }
+        .host-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        .host-url {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+        .form-field {
+            margin-bottom: 15px;
+        }
+        .form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+        .form-field input {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+    <!-- View: Terminal (single-host mode or connected) -->
+    <div id="view-terminal" style="display: none;">
+        <div class="top-banner">
+            <button class="hamburger-button" id="menu-btn">☰</button>
+            <div class="banner-title">wmux</div>
+            <div id="xpra-app-buttons"></div>
+            <button class="controls-button" id="apps-btn" style="display: none;"><span class="btn-full">Apps</span><span class="btn-short">A</span></button>
+            <button class="controls-button" id="controls-btn" style="display: none;"><span class="btn-full">Panes</span><span class="btn-short">P</span></button>
+            <button class="controls-button" id="windows-btn" style="display: none;"><span class="btn-full">Windows</span><span class="btn-short">W</span></button>
+            <button class="controls-button" id="sessions-btn" style="display: none;"><span class="btn-full">Sessions</span><span class="btn-short">S</span></button>
+            <button class="controls-button" id="hosts-btn" style="display: none;"><span class="btn-full">Hosts</span><span class="btn-short">H</span></button>
+            <div class="connection-indicator" id="status">
+                <span class="indicator-dot"></span>
+                <span class="indicator-text">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Menu, dialogs, etc from original index.html -->
+        <div class="menu-overlay" id="nav-overlay"></div>
+        <div class="menu-panel" id="nav-menu">
+            <button class="menu-close" id="close-menu">×</button>
+            <div class="menu-items">
+                <div class="menu-section-title">Settings</div>
+                <div class="menu-section">
+                    <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 15px;">
+                        Font Size: <span id="font-size-value">13</span>px
+                        <input type="range" id="font-size" min="10" max="24" value="13" style="width: 100%; margin-top: 8px;">
+                    </label>
+                    <button id="reconnect-btn" class="menu-btn">Reconnect to Server</button>
+                    <button id="disconnect-btn" class="menu-btn" style="background: var(--accent); border-color: var(--accent);">Disconnect Session</button>
+                </div>
+                <div class="menu-section-title" id="debug-toggle" style="cursor: pointer; user-select: none;">Debug Info ▼</div>
+                <div class="menu-section" id="debug-section" style="display: none;">
+                    <div id="debug-info" style="font-family: monospace; font-size: 10px; color: #00FF00; background: #000; padding: 10px; border-radius: 4px; white-space: pre-wrap;">Loading...</div>
+                </div>
+                <div class="menu-section-title">Info</div>
+                <div class="menu-section">
+                    <div style="font-size: 10px; color: #888;">
+                        Mouse support enabled<br>
+                        <br>
+                        <strong style="color: #aaa;">Shortcuts:</strong><br>
+                        Ctrl+Space then A = Apps<br>
+                        Ctrl+Space then P = Panes<br>
+                        Ctrl+Space then W = Windows<br>
+                        Ctrl+Space then S = Sessions<br>
+                        Ctrl+Space then H = Hosts<br>
+                        ESC = Close dialog<br>
+                        <br>
+                        <strong style="color: #aaa;">tmux prefix:</strong><br>
+                        Ctrl+b<br>
+                        <br>
+                        <strong style="color: #aaa;">Mobile:</strong><br>
+                        Tap KB button to toggle keyboard
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All dialogs from original index.html -->
+        <div class="dialog-overlay" id="windows-overlay"></div>
+        <div class="dialog" id="windows-dialog">
+            <div class="dialog-header">
+                <div class="dialog-title">
+                    Windows
+                    <span id="window-search-query" style="margin-left: 10px; color: #0066FF; font-size: 0.9em; font-weight: normal;"></span>
+                </div>
+                <button class="dialog-close" id="close-windows">×</button>
+            </div>
+            <div class="dialog-content" style="display: flex; flex-direction: column;">
+                <div id="windows-list" style="flex: 1; height: 400px; min-height: 400px; max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-tertiary); margin-bottom: 15px;">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">No windows available</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <button id="close-window" class="control-btn">Close</button>
+                    <button id="rename-window" class="control-btn">Rename</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <button id="prev-window" class="control-btn" style="font-size: 1.2em;">&lt;</button>
+                    <button id="new-window" class="control-btn" style="font-size: 1.2em;">+</button>
+                    <button id="next-window" class="control-btn" style="font-size: 1.2em;">&gt;</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="rename-window-overlay"></div>
+        <div class="dialog" id="rename-window-dialog" style="max-width: 400px;">
+            <div class="dialog-header">
+                <div class="dialog-title">Rename Window</div>
+                <button class="dialog-close" id="close-rename-window">×</button>
+            </div>
+            <div class="dialog-content">
+                <div class="form-field">
+                    <label>Window Name</label>
+                    <input type="text" id="rename-window-input" placeholder="New window name" />
+                </div>
+                <button class="control-btn" id="rename-window-submit" style="background: var(--accent); border-color: var(--accent); width: 100%; margin-top: 10px;">Rename</button>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="controls-overlay"></div>
+        <div class="dialog" id="controls-dialog">
+            <div class="dialog-header">
+                <div class="dialog-title">Panes</div>
+                <button class="dialog-close" id="close-controls">×</button>
+            </div>
+            <div class="dialog-content">
+                <div class="control-section">
+                    <div class="control-section-label">Split</div>
+                    <div class="control-buttons">
+                        <button id="split-h" class="control-btn">Horizontal (│)</button>
+                        <button id="split-v" class="control-btn">Vertical (─)</button>
+                    </div>
+                </div>
+                <div class="control-section">
+                    <div class="control-section-label">Actions</div>
+                    <div class="control-buttons">
+                        <button id="close-pane" class="control-btn">Close</button>
+                        <button id="zoom-pane" class="control-btn">Zoom Toggle</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="confirm-kill-overlay"></div>
+        <div class="dialog" id="confirm-kill-dialog" style="max-width: 400px;">
+            <div class="dialog-header">
+                <div class="dialog-title">Confirm Kill Session</div>
+                <button class="dialog-close" id="close-confirm-kill">×</button>
+            </div>
+            <div class="dialog-content">
+                <p id="confirm-kill-message" style="margin-bottom: 20px; color: var(--text-primary);"></p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button id="confirm-kill-cancel" class="control-btn">Cancel</button>
+                    <button id="confirm-kill-yes" class="control-btn" style="background: var(--accent); border-color: var(--accent);">Kill Session</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="sessions-overlay"></div>
+        <div class="dialog" id="sessions-dialog">
+            <div class="dialog-header">
+                <div class="dialog-title">
+                    Sessions
+                    <span id="session-search-query" style="margin-left: 10px; color: #0066FF; font-size: 0.9em; font-weight: normal;"></span>
+                </div>
+                <button class="dialog-close" id="close-sessions">×</button>
+            </div>
+            <div class="dialog-content" style="display: flex; flex-direction: column;">
+                <div id="sessions-list" style="flex: 1; height: 400px; min-height: 400px; max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-tertiary); margin-bottom: 15px;">
+                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading sessions...</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+                    <input type="text" id="new-session-name" placeholder="New session name..." style="padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; font-family: inherit; font-size: 0.85em;">
+                    <button id="create-btn" class="control-btn" style="font-size: 1.2em;">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="hosts-overlay"></div>
+        <div class="dialog" id="hosts-dialog">
+            <div class="dialog-header">
+                <div class="dialog-title">
+                    Hosts
+                    <span id="host-search-query" style="margin-left: 10px; color: #0066FF; font-size: 0.9em; font-weight: normal;"></span>
+                </div>
+                <button class="dialog-close" id="close-hosts">×</button>
+            </div>
+            <div class="dialog-content" style="display: flex; flex-direction: column;">
+                <div id="hosts-list" style="flex: 1; height: 400px; min-height: 400px; max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-tertiary); margin-bottom: 15px;">
+                    <div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading hosts...</div>
+                </div>
+                <button id="show-add-host-dialog" class="control-btn" style="font-size: 1.2em;">+</button>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="add-host-overlay"></div>
+        <div class="dialog" id="add-host-dialog" style="max-width: 400px;">
+            <div class="dialog-header">
+                <div class="dialog-title">Add New Host</div>
+                <button class="dialog-close" id="close-add-host">×</button>
+            </div>
+            <div class="dialog-content">
+                <div class="form-field">
+                    <label>Name</label>
+                    <input type="text" id="host-name-input" placeholder="My Server" />
+                </div>
+                <div class="form-field">
+                    <label>URL</label>
+                    <input type="text" id="host-url-input" placeholder="https://100.65.21.100:2022" />
+                </div>
+                <button class="control-btn" id="add-host-submit" style="background: var(--accent); border-color: var(--accent); width: 100%; margin-top: 10px;">Add Host</button>
+            </div>
+        </div>
+
+        <div class="dialog-overlay" id="apps-overlay"></div>
+        <div class="dialog" id="apps-dialog">
+            <div class="dialog-header">
+                <div class="dialog-title">Applications</div>
+                <button class="dialog-close" id="close-apps">×</button>
+            </div>
+            <div class="dialog-content">
+                <div class="control-section">
+                    <div class="control-section-label">
+                        Available Apps
+                        <span id="app-search-query" style="margin-left: 10px; color: #0066FF; font-size: 0.9em; font-weight: normal;"></span>
+                    </div>
+                    <div id="apps-list" style="height: 400px; min-height: 400px; max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-tertiary);">
+                        <div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading apps...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="keyboard-toggle" style="display: none; position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); right: 20px; z-index: 1000; background: var(--accent); color: white; border: none; border-radius: 50%; width: 56px; height: 56px; font-size: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); cursor: pointer; font-weight: bold; touch-action: manipulation;">KB</button>
+
+        <button id="paste-toggle" style="display: none; position: fixed; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); right: 20px; z-index: 1000; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; width: 56px; height: 56px; font-size: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); cursor: pointer; font-weight: bold; touch-action: manipulation;">📋</button>
+
+        <div id="terminal-container">
+            <div id="terminal"></div>
+        </div>
+
+        <!-- Xpra overlay for GUI apps -->
+        <div id="xpra-overlay" style="display: none; position: absolute; top: calc(48px + env(safe-area-inset-top)); left: 0; right: 0; bottom: env(safe-area-inset-bottom); background: var(--bg-primary); z-index: 500;">
+            <div id="xpra-loading" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; flex-direction: column; color: var(--text-secondary);">
+                <div style="font-size: 2em; margin-bottom: 20px;">⏳</div>
+                <div style="font-size: 1.2em;">Loading application...</div>
+            </div>
+            <iframe id="xpra-frame" style="display: none; width: 100%; height: 100%; border: none; background: #000;"></iframe>
+        </div>
+    </div>
+
+    <script src="vendor/xterm.js"></script>
+    <script src="vendor/xterm-addon-fit.js"></script>
+    <script src="vendor/xterm-addon-web-links.js"></script>
+    <script src="app.js"></script>
+    <script src="spa-router.js"></script>
+    <script>
+        // Disable service worker for now - causing issues
+        // Unregister any existing service workers
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                    console.log('Service Worker unregistered');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
