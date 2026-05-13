@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wmux-v11';
+const CACHE_NAME = 'wmux-v13';
 
 self.addEventListener('install', event => {
   // Skip waiting to activate immediately
